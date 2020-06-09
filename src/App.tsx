@@ -1,25 +1,80 @@
 import React from 'react';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 
 import './App.scss';
-import Start from './components/Start';
-import { Finish } from './components/Finish';
 
-import { isLoading, getMessage } from './store';
+import { getTodos, getUsers } from './helpers/api';
+import {
+  initTodos,
+  startLoading,
+  finishLoading,
+  sortByName,
+  sortByStatus,
+  sortByTitle,
+  deleteTodo,
+  RootState
+} from './store/index';
 
+import { Buttons } from './components/Buttons/Buttons';
+import { TodoList } from './components/TodoList/TodoList';
+
+export const getAppData = async (): Promise<Todo[]> => {
+  const todosFromServer = await getTodos();
+  const usersFromServer = await getUsers();
+
+  return todosFromServer.map(todo => ({
+    ...todo,
+    user: usersFromServer.find(user => user.id === todo.userId) || null,
+  }));
+};
 
 const App = () => {
-  const loading = useSelector(isLoading);
-  const message = useSelector(getMessage) || 'Ready!';
+  const dispatch = useDispatch();
+  const todos = useSelector((state: RootState) => state.todos);
+  const isLoading = useSelector((state: RootState) => state.isLoading);
+
+  const initData = () => {
+    dispatch(startLoading());
+
+    getAppData()
+      .then(todosFromServer => {
+        const action = initTodos(todosFromServer);
+
+        dispatch(action);
+      })
+      .finally(() => dispatch(finishLoading()));
+  };
+
+  const handleSortByTitle = () => {
+    dispatch(sortByTitle());
+  };
+
+  const handleSortByName = () => {
+    dispatch(sortByName());
+  };
+
+  const handleSortByStatus = () => {
+    dispatch(sortByStatus());
+  };
+
+  const handleDeleteTodo = (id: number) => {
+    dispatch(deleteTodo(id));
+  };
 
   return (
     <div className="App">
       <h1>Redux list of todos</h1>
-      <h2>{loading ? 'Loading...' : message}</h2>
-
-      <Start title="Start loading" />
-      <Finish title="Succeed loading" message="Loaded successfully!" />
-      <Finish title="Fail loading" message="An error occurred when loading data." />
+      <Buttons
+        isLoading={isLoading}
+        initData={initData}
+        sortByName={handleSortByName}
+        sortByStatus={handleSortByStatus}
+        sortByTitle={handleSortByTitle}
+      />
+      <TodoList
+        todos={todos}
+        deleteTodo={handleDeleteTodo}
+      />
     </div>
   );
 };
